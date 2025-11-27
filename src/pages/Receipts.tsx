@@ -1,5 +1,5 @@
 // src/pages/Receipts.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { uploadToOneDrive } from "../services/graphService";
 import { generateExcelForMonth } from "../utils/excelGenerator";
 

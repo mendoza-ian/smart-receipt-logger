@@ -14,8 +14,8 @@ interface ImportedReceipt {
 const SHEETS = ["Meal", "Clothing", "WFH", "Transportation"] as const;
 
 export async function generateExcelForMonth(
-  year: number,
-  month: number,
+  _year: number,
+  _month: number,
   receipts: ImportedReceipt[]
 ): Promise<Blob> {
   const workbook = new ExcelJS.Workbook();
