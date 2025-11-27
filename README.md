@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
@@ -71,3 +72,7 @@ export default defineConfig([
   },
 ])
 ```
+=======
+# smart-receipt-logger
+Frontend-only receipt logging app for allowance tracking. Built with Vite + React
+>>>>>>> 0053e26642764c2e88fe3663c61d0750ecb1f805
