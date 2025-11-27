@@ -1,9 +1,9 @@
 // src/pages/Receipts.tsx
+
 import { useEffect, useState } from "react";
-import { uploadToOneDrive } from "../services/graphService";
 import { generateExcelForMonth } from "../utils/excelGenerator";
 
-// Receipt structure from AddReceipt page
+// Structure for imported receipts
 interface ImportedReceipt {
   id: string;
   type: string;
@@ -13,168 +13,194 @@ interface ImportedReceipt {
   imageBase64: string | null;
 }
 
-function Receipts() {
-  const now = new Date();
-
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+export default function Receipts() {
   const [receipts, setReceipts] = useState<ImportedReceipt[]>([]);
 
-  const key = `receipts_${year}_${month}`;
-
+  // Load receipts from localStorage
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem(key) || "[]");
-    setReceipts(saved);
-  }, [key]);
+    const now = new Date();
+    const key = `receipts_${now.getFullYear()}_${now.getMonth() + 1}`;
 
-  function totalAmount() {
-    return receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
-  }
+    const saved = localStorage.getItem(key);
 
-  function clearMonth() {
-    if (!confirm("Delete all receipts for this month?")) return;
+    if (saved) {
+      setReceipts(JSON.parse(saved));
+    }
+  }, []);
+
+  // Delete one receipt
+  const deleteReceipt = (id: string) => {
+    if (!confirm("Delete this receipt?")) return;
+
+    const updated = receipts.filter((r) => r.id !== id);
+    setReceipts(updated);
+
+    const now = new Date();
+    const key = `receipts_${now.getFullYear()}_${now.getMonth() + 1}`;
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
+
+  // Clear all receipts for the month
+  const clearAll = () => {
+    if (!confirm("Clear all receipts for this month?")) return;
+
+    const now = new Date();
+    const key = `receipts_${now.getFullYear()}_${now.getMonth() + 1}`;
+
     localStorage.removeItem(key);
     setReceipts([]);
-  }
+  };
 
-  // ONE DRIVE UPLOAD FLOW
-  async function handleSendToOneDrive() {
+  // Download Excel file (local only)
+  const handleDownloadExcel = async () => {
     if (receipts.length === 0) {
-      alert("No receipts to upload for this month.");
+      alert("No receipts to export.");
       return;
     }
 
-    try {
-      alert("Generating Excel…");
-      const blob = await generateExcelForMonth(year, month, receipts);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
 
-      // naming: November 2025.xlsx
-      const date = new Date(year, month - 1);
-      const fileName =
-        `${date.toLocaleString("default", { month: "long" })} ${year}.xlsx`;
+    const blob = await generateExcelForMonth(year, month, receipts);
 
-      alert("Uploading to OneDrive…");
+    const fileName = `${now.toLocaleString("default", {
+      month: "long",
+    })} ${year}.xlsx`;
 
-      await uploadToOneDrive(fileName, blob);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
 
-      alert("Upload successful!");
-    } catch (e) {
-      console.error("Upload error:", e);
-      alert("Error uploading to OneDrive. See console for details.");
-    }
-  }
+    alert("Excel downloaded!");
+  };
+
+  // Group receipts by type for display
+  const grouped: Record<string, ImportedReceipt[]> = {
+    Meal: [],
+    Clothing: [],
+    WFH: [],
+    Transportation: [],
+  };
+
+  receipts.forEach((r) => {
+    grouped[r.type]?.push(r);
+  });
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>Receipts</h2>
+      <h2>Receipts Summary</h2>
 
-      {/* Month Selector */}
-      <div style={{ marginBottom: "20px" }}>
-        <label>Month: </label>
-        <select
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
-        >
-          {[1,2,3,4,5,6,7,8,9,10,11,12].map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
+      {receipts.length === 0 ? (
+        <p>No receipts added yet.</p>
+      ) : (
+        <>
+          <button
+            style={{
+              background: "#6c5ce7",
+              color: "white",
+              padding: "10px 20px",
+              borderRadius: "8px",
+              marginBottom: "10px",
+            }}
+            onClick={handleDownloadExcel}
+          >
+            Download Excel File
+          </button>
 
-        <label style={{ marginLeft: "10px" }}>Year: </label>
-        <select
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-        >
-          {[2024,2025,2026].map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+          <button
+            style={{
+              background: "#d63031",
+              color: "white",
+              padding: "10px 20px",
+              borderRadius: "8px",
+              marginLeft: "10px",
+              marginBottom: "10px",
+            }}
+            onClick={clearAll}
+          >
+            Clear All
+          </button>
 
-        <button
-          onClick={clearMonth}
-          style={{
-            marginLeft: "20px",
-            padding: "6px 14px",
-            background: "#ff5050",
-            border: "none",
-            color: "white",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          Clear Month
-        </button>
-      </div>
+          {Object.keys(grouped).map((type) => {
+            const list = grouped[type];
+            if (list.length === 0) return null;
 
-      {/* Receipts Table */}
-      <table
-        style={{
-          width: "100%",
-          maxWidth: "800px",
-          background: "white",
-          borderRadius: "8px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-          borderCollapse: "collapse",
-        }}
-      >
-        <thead>
-          <tr style={{ background: "#f1f1f1" }}>
-            <th style={th}>Type</th>
-            <th style={th}>Date</th>
-            <th style={th}>Merchant</th>
-            <th style={th}>Amount</th>
-          </tr>
-        </thead>
+            return (
+              <div
+                key={type}
+                style={{
+                  marginTop: "25px",
+                  background: "white",
+                  padding: "20px",
+                  borderRadius: "12px",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+                }}
+              >
+                <h3>{type}</h3>
 
-        <tbody>
-          {receipts.map((r) => (
-            <tr key={r.id}>
-              <td style={td}>{r.type}</td>
-              <td style={td}>{r.date || ""}</td>
-              <td style={td}>{r.merchant || ""}</td>
-              <td style={td}>{r.amount ?? ""}</td>
-            </tr>
-          ))}
+                {list.map((r) => (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: "flex",
+                      gap: "20px",
+                      marginBottom: "20px",
+                      paddingBottom: "15px",
+                      borderBottom: "1px solid #ddd",
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <p>
+                        <strong>Date:</strong> {r.date || "—"}
+                      </p>
+                      <p>
+                        <strong>Merchant:</strong> {r.merchant || "—"}
+                      </p>
+                      <p>
+                        <strong>Amount:</strong>{" "}
+                        {r.amount !== null ? `₱${r.amount.toFixed(2)}` : "—"}
+                      </p>
 
-          {/* TOTAL ROW */}
-          <tr style={{ background: "#fafafa", fontWeight: 600 }}>
-            <td style={td}>Total</td>
-            <td style={td}></td>
-            <td style={td}></td>
-            <td style={td}>{totalAmount()}</td>
-          </tr>
-        </tbody>
-      </table>
+                      <button
+                        style={{
+                          marginTop: "10px",
+                          background: "#d63031",
+                          color: "white",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          fontSize: "14px",
+                        }}
+                        onClick={() => deleteReceipt(r.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
 
-      {/* Upload to OneDrive Button */}
-      <button
-        onClick={handleSendToOneDrive}
-        style={{
-          marginTop: "30px",
-          padding: "12px 24px",
-          background: "#3a6dff",
-          border: "none",
-          color: "white",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontSize: "16px",
-        }}
-      >
-        Send to OneDrive
-      </button>
+                    <div>
+                      {r.imageBase64 && (
+                        <img
+                          src={r.imageBase64}
+                          alt="receipt"
+                          style={{
+                            width: "160px",
+                            height: "auto",
+                            borderRadius: "8px",
+                            border: "1px solid #ccc",
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
-
-const th = {
-  padding: "12px",
-  borderBottom: "1px solid #ddd",
-  textAlign: "left" as const,
-};
-
-const td = {
-  padding: "12px",
-  borderBottom: "1px solid #eee",
-};
-
-export default Receipts;
