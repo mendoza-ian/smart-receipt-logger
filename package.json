@@ -12,12 +12,16 @@
   "dependencies": {
     "@azure/msal-browser": "^4.26.2",
     "@azure/msal-react": "^3.0.22",
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@types/file-saver": "^2.0.7",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
